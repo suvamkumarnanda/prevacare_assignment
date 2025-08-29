@@ -57,28 +57,52 @@ export default function FeatureShowcase() {
   const [autoScrollDone, setAutoScrollDone] = useState(false);
   const sectionRef = useRef(null);
 
-  // Auto-scroll lock behavior
+  // Auto-scroll step functionality
   useEffect(() => {
+    let isThrottled = false;
+
     const handleScroll = (e) => {
-      if (!sectionRef.current || autoScrollDone) return;
+      if (!sectionRef.current) return;
 
       const rect = sectionRef.current.getBoundingClientRect();
       const inView = rect.top <= 0 && rect.bottom > window.innerHeight;
 
-      if (inView) {
+      // 🔑 Reset autoScrollDone when section re-enters view
+      if (inView && autoScrollDone) {
+        setAutoScrollDone(false);
+      }
+
+      if (inView && !isThrottled && !autoScrollDone) {
         e.preventDefault();
         e.stopPropagation();
 
-        if (activeIndex < features.length - 1) {
+        if (e.deltaY > 0 && activeIndex < features.length - 1) {
+          // scroll down → next feature
           setActiveIndex((prev) => prev + 1);
-        } else {
-          // release scroll after last feature
+        } else if (e.deltaY < 0 && activeIndex > 0) {
+          // scroll up → previous feature
+          setActiveIndex((prev) => prev - 1);
+        } else if (e.deltaY > 0 && activeIndex === features.length - 1) {
+          // reached last → release scroll
           setAutoScrollDone(true);
           window.scrollTo({
             top: window.scrollY + rect.height,
-            behavior: "smooth"
+            behavior: "smooth",
+          });
+        } else if (e.deltaY < 0 && activeIndex === 0) {
+          // reached first → release scroll upwards
+          setAutoScrollDone(true);
+          window.scrollTo({
+            top: window.scrollY - rect.height,
+            behavior: "smooth",
           });
         }
+
+        // throttle for smooth step effect
+        isThrottled = true;
+        setTimeout(() => {
+          isThrottled = false;
+        }, 700);
       }
     };
 
